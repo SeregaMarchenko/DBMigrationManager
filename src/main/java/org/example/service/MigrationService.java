@@ -3,7 +3,7 @@ package org.example.service;
 import org.example.util.ConnectionManager;
 import org.example.util.MigrationFileReader;
 import org.example.util.MigrationRollbackGenerator;
-import org.example.service.model.MigrationRecord;
+import org.example.model.MigrationRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

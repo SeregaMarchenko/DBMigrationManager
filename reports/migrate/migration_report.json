@@ -1,0 +1,1 @@
+[{"scriptName":"V1__Create_users_table.sql","status":"SUCCESS","appliedAt":1732123072983},{"scriptName":"V2__Create_roles_table.sql","status":"SUCCESS","appliedAt":1732123072989},{"scriptName":"V3__Create_user_roles_table.sql","status":"SUCCESS","appliedAt":1732123072991}]

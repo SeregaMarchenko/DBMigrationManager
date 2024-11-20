@@ -1,7 +1,7 @@
 package org.example.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.example.service.model.MigrationRecord;
+import org.example.model.MigrationRecord;
 
 import java.io.FileWriter;
 import java.io.IOException;
