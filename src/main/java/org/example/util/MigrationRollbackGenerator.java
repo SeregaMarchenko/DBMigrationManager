@@ -28,7 +28,7 @@ public class MigrationRollbackGenerator {
                 .collect(Collectors.toList());
     }
 
-    private static String generateRollbackSql(String migrationSql) {
+    public static String generateRollbackSql(String migrationSql) {
         StringBuilder rollbackSql = new StringBuilder();
 
         if (migrationSql.contains("CREATE TABLE")) {

@@ -68,14 +68,10 @@ public class MigrationService {
                 }
             }
 
-            // Generate rollbacks after all migrations are applied
-            MigrationRollbackGenerator.generateRollbackFiles("src/main/resources/db/migrations");
-
             connection.commit(); // Commit transaction if all is successful
 
             // Generate reports for migrations applied in this run
-            reportService.generateCSVReport(appliedThisRun, "migration_report.csv");
-            reportService.generateJSONReport(appliedThisRun, "migration_report.json");
+            reportService.generateJSONReport(appliedThisRun, "reports/migrate/migration_report.json");
 
             lockService.unlock(connection); // Release lock
         } catch (IOException | SQLException e) {
@@ -109,25 +105,24 @@ public class MigrationService {
 
             List<String> appliedMigrations = historyService.getAppliedMigrations(connection);
             if (!appliedMigrations.isEmpty()) {
-                String lastMigration = appliedMigrations.get(appliedMigrations.size() - 1); // Get last applied migration
-                String rollbackFile = lastMigration.replace(".sql", "_rollback.sql");
-                String rollbackSql = MigrationFileReader.readMigrationFile(rollbackFile);
+                // Откат самой первой миграции
+                String firstMigration = appliedMigrations.remove(0); // Get and remove the first applied migration
+                String rollbackSql = MigrationRollbackGenerator.generateRollbackSql(firstMigration);
                 try (Statement stmt = connection.createStatement()) {
                     stmt.execute(rollbackSql);
                 }
-                historyService.removeMigrationRecord(connection, lastMigration);
-                rollbackThisRun.add(new MigrationRecord(lastMigration, "ROLLED BACK", new java.sql.Timestamp(System.currentTimeMillis())));
+                historyService.removeMigrationRecord(connection, firstMigration);
+                rollbackThisRun.add(new MigrationRecord(firstMigration, "ROLLED BACK", new java.sql.Timestamp(System.currentTimeMillis())));
                 connection.commit(); // Commit transaction
 
                 // Generate reports for rollbacks performed in this run
-                reportService.generateCSVReport(rollbackThisRun, "rollback_report.csv");
-                reportService.generateJSONReport(rollbackThisRun, "rollback_report.json");
+                reportService.generateJSONReport(rollbackThisRun, "reports/rollback/rollback_report.json");
 
-                logger.info("Successfully rolled back migration: {}", lastMigration);
+                logger.info("Successfully rolled back migration: {}", firstMigration);
             } else {
                 logger.info("No migrations to rollback.");
             }
-        } catch (IOException | SQLException e) {
+        } catch (SQLException e) {
             if (connection != null) {
                 try {
                     connection.rollback(); // Rollback transaction in case of error
@@ -148,12 +143,21 @@ public class MigrationService {
         }
     }
 
+    public void generateRollbackFiles(String migrationFolderPath) {
+        try {
+            MigrationRollbackGenerator.generateRollbackFiles(migrationFolderPath);
+            logger.info("Rollback files generated successfully.");
+        } catch (IOException e) {
+            logger.error("Failed to generate rollback files.", e);
+        }
+    }
+
     public void printMigrationStatus() {
         Connection connection = null;
         try {
             connection = ConnectionManager.getConnection();
             List<String> appliedMigrations = historyService.getAppliedMigrations(connection);
-            String currentVersion = appliedMigrations.isEmpty() ? "No migrations applied" : appliedMigrations.get(appliedMigrations.size() - 1);
+            String currentVersion = appliedMigrations.isEmpty() ? "No migrations applied" : appliedMigrations.get(0);
 
             logger.info("Current Database Version: {}", currentVersion);
             logger.info("Applied Migrations:");

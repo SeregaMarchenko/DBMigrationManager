@@ -2,12 +2,19 @@ package org.example;
 
 import org.example.migration.MigrationManager;
 
+import java.util.Scanner;
+
 public class MigrationTool {
     public static void main(String[] args) {
         MigrationManager migrationManager = new MigrationManager();
+        Scanner scanner = new Scanner(System.in);
+        String command = "";
 
-        if (args.length > 0) {
-            switch (args[0]) {
+        while (!command.equalsIgnoreCase("exit")) {
+            System.out.println("Please enter a command: 'migrate', 'rollback', 'status', or 'exit' to quit.");
+            command = scanner.nextLine().trim();
+
+            switch (command.toLowerCase()) {
                 case "migrate":
                     migrationManager.migrate();
                     break;
@@ -17,11 +24,14 @@ public class MigrationTool {
                 case "status":
                     migrationManager.printStatus();
                     break;
+                case "exit":
+                    System.out.println("Exiting...");
+                    break;
                 default:
-                    System.out.println("Unknown command. Use 'migrate', 'rollback', or 'status'.");
+                    System.out.println("Unknown command. Please try again.");
             }
-        } else {
-            System.out.println("Please provide a command: 'migrate', 'rollback', or 'status'.");
         }
+        scanner.close();
     }
 }
+
