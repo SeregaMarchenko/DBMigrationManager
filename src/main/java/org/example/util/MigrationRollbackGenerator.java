@@ -14,34 +14,17 @@ public class MigrationRollbackGenerator {
     /**
      * Generates rollback files for all migration files in the specified directory.
      *
-     * @param migrationFolderPath the path to the directory containing migration files
      * @throws IOException if an I/O error occurs
      */
-    public static void generateRollbackFiles(String migrationFolderPath) throws IOException {
-        List<String> migrationFiles = getSqlFiles(migrationFolderPath);
+    public static void generateRollbackFiles() throws IOException {
+        List<String> migrationFiles = MigrationFileReader.getMigrationFiles();
 
         for (String file : migrationFiles) {
-            String migrationSql = new String(Files.readAllBytes(Paths.get(migrationFolderPath, file)));
+            String migrationSql = new String(Files.readAllBytes(Paths.get(MigrationPaths.MIGRATION_DIRECTORY, file)));
             String rollbackSql = generateRollbackSql(migrationSql);
             String rollbackFileName = file.replace(".sql", "_rollback.sql");
-            Files.write(Paths.get(migrationFolderPath, rollbackFileName), rollbackSql.getBytes());
+            Files.write(Paths.get(MigrationPaths.ROLLBACK_DIRECTORY, rollbackFileName), rollbackSql.getBytes());
         }
-    }
-
-    /**
-     * Retrieves a list of SQL files from the specified directory.
-     *
-     * @param folderPath the path to the directory
-     * @return a list of SQL file names
-     * @throws IOException if an I/O error occurs
-     */
-    private static List<String> getSqlFiles(String folderPath) throws IOException {
-        return Files.list(Paths.get(folderPath))
-                .filter(path -> path.toString().endsWith(".sql"))
-                .filter(path -> !path.toString().contains("_rollback"))
-                .map(path -> path.getFileName().toString())
-                .sorted()
-                .collect(Collectors.toList());
     }
 
     /**
@@ -84,8 +67,6 @@ public class MigrationRollbackGenerator {
      * @return the delete conditions
      */
     private static String generateDeleteConditions(String migrationSql) {
-        // Extract table name
-        String tableName = migrationSql.split("INSERT INTO")[1].split("\\(")[0].trim();
 
         // Extract column names
         String columnsPart = migrationSql.split("\\(")[1].split("\\)")[0].trim();

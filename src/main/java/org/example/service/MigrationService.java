@@ -4,6 +4,7 @@ import org.example.util.ConnectionManager;
 import org.example.util.MigrationFileReader;
 import org.example.util.MigrationRollbackGenerator;
 import org.example.model.MigrationRecord;
+import org.example.util.ReportPaths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +31,7 @@ public class MigrationService {
      * Constructs a new MigrationService with the specified history and lock services.
      *
      * @param historyService the migration history service
-     * @param lockService the migration lock service
+     * @param lockService    the migration lock service
      */
     public MigrationService(MigrationHistoryService historyService, MigrationLockService lockService) {
         this.historyService = historyService;
@@ -82,12 +83,12 @@ public class MigrationService {
             }
 
             // Generate rollbacks after all migrations are applied
-            MigrationRollbackGenerator.generateRollbackFiles("src/main/resources/db/migrations");
+            MigrationRollbackGenerator.generateRollbackFiles();
 
             connection.commit(); // Commit transaction if all is successful
 
             // Generate reports for migrations applied in this run
-            reportService.generateJSONReport(appliedThisRun, "reports/migrate/migration_report.json");
+            reportService.generateJSONReport(appliedThisRun, ReportPaths.MIGRATE_REPORT_DIRECTORY + "migration_report.json");
 
             lockService.unlock(connection); // Release lock
         } catch (IOException | SQLException e) {
@@ -131,13 +132,13 @@ public class MigrationService {
                     stmt.execute(rollbackSql);
                 }
                 historyService.removeMigrationRecord(connection, firstMigration);
-                rollbackThisRun.add(new MigrationRecord( firstMigration, "ROLLED BACK", new java.sql.Timestamp(System.currentTimeMillis())));
+                rollbackThisRun.add(new MigrationRecord(firstMigration, "ROLLED BACK", new java.sql.Timestamp(System.currentTimeMillis())));
                 connection.commit(); // Commit transaction
 
                 // Generate reports for rollbacks performed in this run
-                reportService.generateJSONReport(rollbackThisRun, "reports/rollback/rollback_report.json");
+                reportService.generateJSONReport(rollbackThisRun, ReportPaths.ROLLBACK_REPORT_DIRECTORY + "rollback_report.json");
 
-                logger.info("Successfully rolled back migration: {}",  firstMigration);
+                logger.info("Successfully rolled back migration: {}", firstMigration);
             } else {
                 logger.info("No migrations to rollback.");
             }

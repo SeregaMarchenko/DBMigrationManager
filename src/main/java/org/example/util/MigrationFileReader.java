@@ -18,7 +18,7 @@ public class MigrationFileReader {
      * @throws IOException if an I/O error occurs
      */
     public static List<String> getMigrationFiles() throws IOException {
-        return Files.list(Paths.get("src/main/resources/db/migrations"))
+        return Files.list(Paths.get(MigrationPaths.MIGRATION_DIRECTORY))
                 .filter(path -> path.toString().endsWith(".sql"))
                 .filter(path -> !path.toString().contains("_rollback"))
                 .map(path -> path.getFileName().toString())
@@ -34,6 +34,6 @@ public class MigrationFileReader {
      * @throws IOException if an I/O error occurs
      */
     public static String readMigrationFile(String fileName) throws IOException {
-        return new String(Files.readAllBytes(Paths.get("src/main/resources/db/migrations", fileName)));
+        return new String(Files.readAllBytes(Paths.get(MigrationPaths.MIGRATION_DIRECTORY, fileName)));
     }
 }
