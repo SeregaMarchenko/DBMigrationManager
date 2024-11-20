@@ -1,5 +1,6 @@
 package org.example.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.util.ConnectionManager;
 import org.example.util.MigrationFileReader;
 import org.example.util.MigrationRollbackGenerator;
@@ -19,9 +20,8 @@ import java.util.List;
  * MigrationService handles the application and rollback of database migrations,
  * as well as generating reports for migrations and rollbacks.
  */
+@Slf4j
 public class MigrationService {
-
-    private static final Logger logger = LoggerFactory.getLogger(MigrationService.class);
 
     private final MigrationHistoryService historyService;
     private final MigrationLockService lockService;
@@ -52,7 +52,7 @@ public class MigrationService {
             createEssentialTablesIfNotExists(connection);
 
             if (lockService.isLocked(connection)) {
-                logger.warn("Migration is already in progress by another process.");
+                log.warn("Migration is already in progress by another process.");
                 return;
             }
 
@@ -63,7 +63,7 @@ public class MigrationService {
 
             for (String file : migrationFiles) {
                 if (appliedMigrations.contains(file)) {
-                    logger.info("Migration already applied: {}", file);
+                    log.info("Migration already applied: {}", file);
                     continue;
                 }
 
@@ -72,12 +72,12 @@ public class MigrationService {
                     stmt.execute(sql);
                     historyService.recordMigration(connection, file);
                     appliedThisRun.add(new MigrationRecord(file, "SUCCESS", new java.sql.Timestamp(System.currentTimeMillis())));
-                    logger.info("Successfully applied migration: {}", file);
+                    log.info("Successfully applied migration: {}", file);
                 } catch (SQLException e) {
                     appliedThisRun.add(new MigrationRecord(file, "FAILED", new java.sql.Timestamp(System.currentTimeMillis())));
                     connection.rollback(); // Rollback transaction in case of failure
                     lockService.unlock(connection); // Release lock
-                    logger.error("Failed to apply migration: {}. Rolled back all changes.", file, e);
+                    log.error("Failed to apply migration: {}. Rolled back all changes.", file, e);
                     return;
                 }
             }
@@ -97,17 +97,17 @@ public class MigrationService {
                     connection.rollback(); // Rollback transaction in case of error
                     lockService.unlock(connection); // Release lock
                 } catch (SQLException rollbackEx) {
-                    logger.error("Failed to rollback transaction", rollbackEx);
+                    log.error("Failed to rollback transaction", rollbackEx);
                 }
             }
-            logger.error("Migration process failed", e);
+            log.error("Migration process failed", e);
         } finally {
             if (connection != null) {
                 try {
                     connection.setAutoCommit(true); // Restore AutoCommit value
                     connection.close(); // Close connection
                 } catch (SQLException e) {
-                    logger.error("Failed to close connection", e);
+                    log.error("Failed to close connection", e);
                 }
             }
         }
@@ -138,26 +138,26 @@ public class MigrationService {
                 // Generate reports for rollbacks performed in this run
                 reportService.generateJSONReport(rollbackThisRun, ReportPaths.ROLLBACK_REPORT_DIRECTORY + "rollback_report.json");
 
-                logger.info("Successfully rolled back migration: {}", firstMigration);
+                log.info("Successfully rolled back migration: {}", firstMigration);
             } else {
-                logger.info("No migrations to rollback.");
+                log.info("No migrations to rollback.");
             }
         } catch (IOException | SQLException e) {
             if (connection != null) {
                 try {
                     connection.rollback(); // Rollback transaction in case of error
                 } catch (SQLException rollbackEx) {
-                    logger.error("Failed to rollback transaction", rollbackEx);
+                    log.error("Failed to rollback transaction", rollbackEx);
                 }
             }
-            logger.error("Rollback process failed", e);
+            log.error("Rollback process failed", e);
         } finally {
             if (connection != null) {
                 try {
                     connection.setAutoCommit(true); // Restore AutoCommit value
                     connection.close(); // Close connection
                 } catch (SQLException e) {
-                    logger.error("Failed to close connection", e);
+                    log.error("Failed to close connection", e);
                 }
             }
         }
@@ -173,26 +173,26 @@ public class MigrationService {
             List<String> appliedMigrations = historyService.getAppliedMigrations(connection);
             String currentVersion = appliedMigrations.isEmpty() ? "No migrations applied" : appliedMigrations.get(0);
 
-            logger.info("Current Database Version: {}", currentVersion);
-            logger.info("Applied Migrations:");
+            log.info("Current Database Version: {}", currentVersion);
+            log.info("Applied Migrations:");
             for (String migration : appliedMigrations) {
-                logger.info(" - {}", migration);
+                log.info(" - {}", migration);
             }
         } catch (SQLException e) {
-            logger.error("Failed to retrieve migration status", e);
+            log.error("Failed to retrieve migration status", e);
         } finally {
             if (connection != null) {
                 try {
                     connection.close();
                 } catch (SQLException e) {
-                    logger.error("Failed to close connection", e);
+                    log.error("Failed to close connection", e);
                 }
             }
         }
     }
 
     /**
-     * Creates essential tables (migration_history, migration_lock, and operation_log) if they do not exist.
+     * Creates essential tables (migration_history and migration_lock) if they do not exist.
      *
      * @param connection the database connection
      * @throws SQLException if a database access error occurs
@@ -207,15 +207,9 @@ public class MigrationService {
                 "id SERIAL PRIMARY KEY, " +
                 "locked BOOLEAN NOT NULL, " +
                 "locked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)";
-        String createOperationLogTable = "CREATE TABLE IF NOT EXISTS operation_log (" +
-                "id SERIAL PRIMARY KEY, " +
-                "operation VARCHAR(50) NOT NULL, " +
-                "details TEXT, " +
-                "executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)";
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(createMigrationHistoryTable);
             stmt.execute(createMigrationLockTable);
-            stmt.execute(createOperationLogTable);
         }
     }
 }
