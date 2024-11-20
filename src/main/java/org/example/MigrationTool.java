@@ -4,6 +4,9 @@ import org.example.migration.MigrationManager;
 
 import java.util.Scanner;
 
+/**
+ * Main class for interacting with the migration tool via command line.
+ */
 public class MigrationTool {
     public static void main(String[] args) {
         MigrationManager migrationManager = new MigrationManager();
@@ -34,4 +37,3 @@ public class MigrationTool {
         scanner.close();
     }
 }
-

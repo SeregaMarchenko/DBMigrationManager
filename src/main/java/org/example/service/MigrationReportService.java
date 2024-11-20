@@ -7,8 +7,17 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * Service class for generating reports on migration operations.
+ */
 public class MigrationReportService {
 
+    /**
+     * Generates a JSON report for the given migration records.
+     *
+     * @param records the list of migration records
+     * @param filePath the file path to save the JSON report
+     */
     public void generateJSONReport(List<MigrationRecord> records, String filePath) {
         try {
             ObjectMapper mapper = new ObjectMapper();
