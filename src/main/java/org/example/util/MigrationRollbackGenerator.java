@@ -6,8 +6,17 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * MigrationRollbackGenerator provides methods for generating rollback scripts for migration files.
+ */
 public class MigrationRollbackGenerator {
 
+    /**
+     * Generates rollback files for all migration files in the specified directory.
+     *
+     * @param migrationFolderPath the path to the directory containing migration files
+     * @throws IOException if an I/O error occurs
+     */
     public static void generateRollbackFiles(String migrationFolderPath) throws IOException {
         List<String> migrationFiles = getSqlFiles(migrationFolderPath);
 
@@ -19,6 +28,13 @@ public class MigrationRollbackGenerator {
         }
     }
 
+    /**
+     * Retrieves a list of SQL files from the specified directory.
+     *
+     * @param folderPath the path to the directory
+     * @return a list of SQL file names
+     * @throws IOException if an I/O error occurs
+     */
     private static List<String> getSqlFiles(String folderPath) throws IOException {
         return Files.list(Paths.get(folderPath))
                 .filter(path -> path.toString().endsWith(".sql"))
@@ -28,7 +44,13 @@ public class MigrationRollbackGenerator {
                 .collect(Collectors.toList());
     }
 
-    public static String generateRollbackSql(String migrationSql) {
+    /**
+     * Generates a rollback SQL script for the given migration SQL script.
+     *
+     * @param migrationSql the migration SQL script
+     * @return the rollback SQL script
+     */
+    private static String generateRollbackSql(String migrationSql) {
         StringBuilder rollbackSql = new StringBuilder();
 
         if (migrationSql.contains("CREATE TABLE")) {
@@ -55,6 +77,12 @@ public class MigrationRollbackGenerator {
         return rollbackSql.toString();
     }
 
+    /**
+     * Generates delete conditions for an INSERT statement in the migration SQL script.
+     *
+     * @param migrationSql the migration SQL script
+     * @return the delete conditions
+     */
     private static String generateDeleteConditions(String migrationSql) {
         // Extract table name
         String tableName = migrationSql.split("INSERT INTO")[1].split("\\(")[0].trim();

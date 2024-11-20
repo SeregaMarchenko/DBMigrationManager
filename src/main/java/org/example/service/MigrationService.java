@@ -14,6 +14,10 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * MigrationService handles the application and rollback of database migrations,
+ * as well as generating reports for migrations and rollbacks.
+ */
 public class MigrationService {
 
     private static final Logger logger = LoggerFactory.getLogger(MigrationService.class);
@@ -22,11 +26,20 @@ public class MigrationService {
     private final MigrationLockService lockService;
     private final MigrationReportService reportService = new MigrationReportService();
 
+    /**
+     * Constructs a new MigrationService with the specified history and lock services.
+     *
+     * @param historyService the migration history service
+     * @param lockService the migration lock service
+     */
     public MigrationService(MigrationHistoryService historyService, MigrationLockService lockService) {
         this.historyService = historyService;
         this.lockService = lockService;
     }
 
+    /**
+     * Applies all pending migrations and generates reports for the applied migrations.
+     */
     public void migrate() {
         Connection connection = null;
         List<MigrationRecord> appliedThisRun = new ArrayList<>();
@@ -68,6 +81,9 @@ public class MigrationService {
                 }
             }
 
+            // Generate rollbacks after all migrations are applied
+            MigrationRollbackGenerator.generateRollbackFiles("src/main/resources/db/migrations");
+
             connection.commit(); // Commit transaction if all is successful
 
             // Generate reports for migrations applied in this run
@@ -96,6 +112,9 @@ public class MigrationService {
         }
     }
 
+    /**
+     * Rolls back the last applied migration and generates reports for the rollbacks.
+     */
     public void rollback() {
         Connection connection = null;
         List<MigrationRecord> rollbackThisRun = new ArrayList<>();
@@ -105,24 +124,24 @@ public class MigrationService {
 
             List<String> appliedMigrations = historyService.getAppliedMigrations(connection);
             if (!appliedMigrations.isEmpty()) {
-                // Откат самой первой миграции
-                String firstMigration = appliedMigrations.remove(0); // Get and remove the first applied migration
-                String rollbackSql = MigrationRollbackGenerator.generateRollbackSql(firstMigration);
+                String firstMigration = appliedMigrations.remove(0); // Get last applied migration
+                String rollbackFile = firstMigration.replace(".sql", "_rollback.sql");
+                String rollbackSql = MigrationFileReader.readMigrationFile(rollbackFile);
                 try (Statement stmt = connection.createStatement()) {
                     stmt.execute(rollbackSql);
                 }
                 historyService.removeMigrationRecord(connection, firstMigration);
-                rollbackThisRun.add(new MigrationRecord(firstMigration, "ROLLED BACK", new java.sql.Timestamp(System.currentTimeMillis())));
+                rollbackThisRun.add(new MigrationRecord( firstMigration, "ROLLED BACK", new java.sql.Timestamp(System.currentTimeMillis())));
                 connection.commit(); // Commit transaction
 
                 // Generate reports for rollbacks performed in this run
                 reportService.generateJSONReport(rollbackThisRun, "reports/rollback/rollback_report.json");
 
-                logger.info("Successfully rolled back migration: {}", firstMigration);
+                logger.info("Successfully rolled back migration: {}",  firstMigration);
             } else {
                 logger.info("No migrations to rollback.");
             }
-        } catch (SQLException e) {
+        } catch (IOException | SQLException e) {
             if (connection != null) {
                 try {
                     connection.rollback(); // Rollback transaction in case of error
@@ -143,15 +162,9 @@ public class MigrationService {
         }
     }
 
-    public void generateRollbackFiles(String migrationFolderPath) {
-        try {
-            MigrationRollbackGenerator.generateRollbackFiles(migrationFolderPath);
-            logger.info("Rollback files generated successfully.");
-        } catch (IOException e) {
-            logger.error("Failed to generate rollback files.", e);
-        }
-    }
-
+    /**
+     * Prints the current migration status of the database.
+     */
     public void printMigrationStatus() {
         Connection connection = null;
         try {
@@ -177,6 +190,12 @@ public class MigrationService {
         }
     }
 
+    /**
+     * Creates essential tables (migration_history, migration_lock, and operation_log) if they do not exist.
+     *
+     * @param connection the database connection
+     * @throws SQLException if a database access error occurs
+     */
     private void createEssentialTablesIfNotExists(Connection connection) throws SQLException {
         String createMigrationHistoryTable = "CREATE TABLE IF NOT EXISTS migration_history (" +
                 "id SERIAL PRIMARY KEY, " +
