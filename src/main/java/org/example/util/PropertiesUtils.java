@@ -4,21 +4,24 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * Utility class for loading and accessing properties from the application.properties file.
  */
+@Slf4j
 public class PropertiesUtils {
-
     private static Properties properties = new Properties();
 
     static {
         try (InputStream input = PropertiesUtils.class.getClassLoader().getResourceAsStream("application.properties")) {
             if (input == null) {
-                System.out.println("Sorry, unable to find application.properties");
+                log.error("Sorry, unable to find application.properties");
+            } else {
+                properties.load(input);
             }
-            properties.load(input);
         } catch (IOException ex) {
-            ex.printStackTrace();
+            log.error("Error loading properties file", ex);
         }
     }
 

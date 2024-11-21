@@ -3,6 +3,7 @@ package org.example.service;
 import lombok.extern.slf4j.Slf4j;
 import org.example.util.ConnectionManager;
 import org.example.util.MigrationFileReader;
+import org.example.util.MigrationPaths;
 import org.example.util.MigrationRollbackGenerator;
 import org.example.model.MigrationRecord;
 import org.example.util.ReportPaths;
@@ -83,7 +84,7 @@ public class MigrationService {
             }
 
             // Generate rollbacks after all migrations are applied
-            MigrationRollbackGenerator.generateRollbackFiles();
+            MigrationRollbackGenerator.generateRollbackFiles(MigrationPaths.ROLLBACK_DIRECTORY);
 
             connection.commit(); // Commit transaction if all is successful
 

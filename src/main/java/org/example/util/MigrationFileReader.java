@@ -6,9 +6,14 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Utility class for reading migration files from the specified directory.
  */
+@Slf4j
 public class MigrationFileReader {
 
     /**
@@ -18,12 +23,17 @@ public class MigrationFileReader {
      * @throws IOException if an I/O error occurs
      */
     public static List<String> getMigrationFiles() throws IOException {
-        return Files.list(Paths.get(MigrationPaths.MIGRATION_DIRECTORY))
-                .filter(path -> path.toString().endsWith(".sql"))
-                .filter(path -> !path.toString().contains("_rollback"))
-                .map(path -> path.getFileName().toString())
-                .sorted()
-                .collect(Collectors.toList());
+        try {
+            return Files.list(Paths.get(MigrationPaths.MIGRATION_DIRECTORY))
+                    .filter(path -> path.toString().endsWith(".sql"))
+                    .filter(path -> !path.toString().contains("_rollback"))
+                    .map(path -> path.getFileName().toString())
+                    .sorted()
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            log.error("Error reading migration files", e);
+            throw e;
+        }
     }
 
     /**
@@ -34,6 +44,11 @@ public class MigrationFileReader {
      * @throws IOException if an I/O error occurs
      */
     public static String readMigrationFile(String fileName) throws IOException {
-        return new String(Files.readAllBytes(Paths.get(MigrationPaths.MIGRATION_DIRECTORY, fileName)));
+        try {
+            return new String(Files.readAllBytes(Paths.get(MigrationPaths.MIGRATION_DIRECTORY, fileName)));
+        } catch (IOException e) {
+            log.error("Error reading migration file: " + fileName, e);
+            throw e;
+        }
     }
 }

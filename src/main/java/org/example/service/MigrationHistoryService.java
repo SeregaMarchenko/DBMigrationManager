@@ -1,5 +1,7 @@
 package org.example.service;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -11,6 +13,7 @@ import java.util.List;
 /**
  * Service class for managing migration history records in the database.
  */
+@Slf4j
 public class MigrationHistoryService {
 
     /**
@@ -26,6 +29,10 @@ public class MigrationHistoryService {
             pstmt.setString(1, getVersionFromFileName(migrationFile));
             pstmt.setString(2, migrationFile);
             pstmt.executeUpdate();
+            log.info("Recorded migration: {}", migrationFile);
+        } catch (SQLException e) {
+            log.error("Failed to record migration: " + migrationFile, e);
+            throw e;
         }
     }
 
@@ -44,6 +51,10 @@ public class MigrationHistoryService {
             while (rs.next()) {
                 appliedMigrations.add(rs.getString("script_name"));
             }
+            log.info("Retrieved applied migrations: {}", appliedMigrations);
+        } catch (SQLException e) {
+            log.error("Failed to retrieve applied migrations", e);
+            throw e;
         }
         return appliedMigrations;
     }
@@ -60,6 +71,10 @@ public class MigrationHistoryService {
         try (PreparedStatement pstmt = connection.prepareStatement(deleteMigrationRecord)) {
             pstmt.setString(1, migrationFile);
             pstmt.executeUpdate();
+            log.info("Removed migration record: {}", migrationFile);
+        } catch (SQLException e) {
+            log.error("Failed to remove migration record: " + migrationFile, e);
+            throw e;
         }
     }
 
