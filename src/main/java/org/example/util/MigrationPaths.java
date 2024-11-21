@@ -5,7 +5,7 @@ package org.example.util;
  */
 public class MigrationPaths {
 
-    public static final String MIGRATION_DIRECTORY = PropertiesUtils.getProperty("migration.directory");
-    public static final String ROLLBACK_DIRECTORY = PropertiesUtils.getProperty("rollback.directory");
+    public static final String MIGRATION_DIRECTORY = "src/main/resources/db/migrations";
+    public static final String ROLLBACK_DIRECTORY = "src/main/resources/db/migrations";
 
 }

@@ -5,7 +5,7 @@ package org.example.util;
  */
 public class ReportPaths {
 
-    public static final String MIGRATE_REPORT_DIRECTORY = PropertiesUtils.getProperty("report.migrate.directory");
-    public static final String ROLLBACK_REPORT_DIRECTORY = PropertiesUtils.getProperty("report.rollback.directory");
+    public static final String MIGRATE_REPORT_DIRECTORY = "reports/migrate/";
+    public static final String ROLLBACK_REPORT_DIRECTORY = "reports/rollback/";
 
 }
