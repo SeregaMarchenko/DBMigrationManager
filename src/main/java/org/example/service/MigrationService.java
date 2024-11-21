@@ -7,8 +7,6 @@ import org.example.util.MigrationPaths;
 import org.example.util.MigrationRollbackGenerator;
 import org.example.model.MigrationRecord;
 import org.example.util.ReportPaths;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.sql.Connection;
