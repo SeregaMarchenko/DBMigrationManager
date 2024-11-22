@@ -39,14 +39,13 @@ public class MigrationStatusPrinter {
             for (String migration : appliedMigrations) {
                 log.info(" - {}", migration);
             }
-        } catch (SQLException e) {
-            log.error("Failed to retrieve migration status", e);
         } finally {
             if (connection != null) {
                 try {
                     connection.close();
                 } catch (SQLException e) {
                     log.error("Failed to close connection", e);
+                    throw new RuntimeException("Critical error closing database connection", e);
                 }
             }
         }

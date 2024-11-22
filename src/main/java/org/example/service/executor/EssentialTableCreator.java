@@ -16,9 +16,8 @@ public class EssentialTableCreator {
      * Creates essential tables (migration_history and migration_lock) if they do not exist.
      *
      * @param connection the database connection
-     * @throws SQLException if a database access error occurs
      */
-    public void createEssentialTablesIfNotExists(Connection connection) throws SQLException {
+    public void createEssentialTablesIfNotExists(Connection connection) {
         String createMigrationHistoryTable = """
                 CREATE TABLE IF NOT EXISTS migration_history (
                     id SERIAL PRIMARY KEY,
@@ -38,6 +37,9 @@ public class EssentialTableCreator {
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(createMigrationHistoryTable);
             stmt.execute(createMigrationLockTable);
+        } catch (SQLException e) {
+            log.error("Error creating essential tables", e);
+            throw new RuntimeException("Critical error while creating essential tables", e);
         }
     }
 }

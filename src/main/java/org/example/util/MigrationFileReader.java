@@ -18,9 +18,8 @@ public class MigrationFileReader {
      * Retrieves a list of migration files from the migrations directory.
      *
      * @return a list of migration file names
-     * @throws IOException if an I/O error occurs
      */
-    public static List<String> getMigrationFiles() throws IOException {
+    public static List<String> getMigrationFiles() {
         try {
             return Files.list(Paths.get(MigrationPaths.MIGRATION_DIRECTORY))
                     .filter(path -> path.toString().endsWith(".sql"))
@@ -30,7 +29,7 @@ public class MigrationFileReader {
                     .collect(Collectors.toList());
         } catch (IOException e) {
             log.error("Error reading migration files", e);
-            throw e;
+            throw new RuntimeException("Critical error while reading migration files", e);
         }
     }
 
@@ -39,14 +38,13 @@ public class MigrationFileReader {
      *
      * @param fileName the name of the migration file
      * @return the content of the migration file as a string
-     * @throws IOException if an I/O error occurs
      */
-    public static String readMigrationFile(String fileName) throws IOException {
+    public static String readMigrationFile(String fileName) {
         try {
             return new String(Files.readAllBytes(Paths.get(MigrationPaths.MIGRATION_DIRECTORY, fileName)));
         } catch (IOException e) {
             log.error("Error reading migration file: " + fileName, e);
-            throw e;
+            throw new RuntimeException("Critical error while reading migration file: " + fileName, e);
         }
     }
 }

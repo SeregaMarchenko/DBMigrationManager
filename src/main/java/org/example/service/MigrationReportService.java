@@ -20,15 +20,14 @@ public class MigrationReportService {
      *
      * @param migrationRecords the list of migration records
      * @param filePath the file path to save the JSON report
-     * @throws IOException if an I/O error occurs
      */
-    public void generateJSONReport(List<MigrationRecord> migrationRecords, String filePath) throws IOException {
+    public void generateJSONReport(List<MigrationRecord> migrationRecords, String filePath) {
         try {
             objectMapper.writeValue(new File(filePath), migrationRecords);
             log.info("Migration report generated at {}", filePath);
         } catch (IOException e) {
             log.error("Failed to generate migration report", e);
-            throw e;
+            throw new RuntimeException("Critical error while generating migration report", e);
         }
     }
 }

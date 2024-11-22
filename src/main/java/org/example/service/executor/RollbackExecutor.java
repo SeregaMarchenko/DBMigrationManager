@@ -8,7 +8,6 @@ import org.example.util.ConnectionManager;
 import org.example.util.MigrationFileReader;
 import org.example.util.ReportPaths;
 
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -54,7 +53,7 @@ public class RollbackExecutor {
             } else {
                 log.info("No migrations to rollback.");
             }
-        } catch (IOException | SQLException e) {
+        } catch (SQLException e) {
             handleRollbackException(connection, e);
         } finally {
             closeConnection(connection);
@@ -67,17 +66,20 @@ public class RollbackExecutor {
      * @param firstMigration    the first migration file to rollback
      * @param connection        the database connection
      * @param rollbackThisRun   the list of rollback migration records in this run
-     * @throws IOException      if an I/O error occurs
-     * @throws SQLException     if a database access error occurs
      */
-    private void rollbackMigration(String firstMigration, Connection connection, List<MigrationRecord> rollbackThisRun) throws IOException, SQLException {
-        String rollbackFile = firstMigration.replace(".sql", "_rollback.sql");
-        String rollbackSql = MigrationFileReader.readMigrationFile(rollbackFile);
-        try (Statement stmt = connection.createStatement()) {
-            stmt.execute(rollbackSql);
+    private void rollbackMigration(String firstMigration, Connection connection, List<MigrationRecord> rollbackThisRun) {
+        try {
+            String rollbackFile = firstMigration.replace(".sql", "_rollback.sql");
+            String rollbackSql = MigrationFileReader.readMigrationFile(rollbackFile);
+            try (Statement stmt = connection.createStatement()) {
+                stmt.execute(rollbackSql);
+            }
+            historyService.removeMigrationRecord(connection, firstMigration);
+            rollbackThisRun.add(new MigrationRecord(firstMigration, "ROLLED BACK", new java.sql.Timestamp(System.currentTimeMillis())));
+        } catch (SQLException e) {
+            log.error("Failed to rollback migration: {}", firstMigration, e);
+            throw new RuntimeException("Critical error during migration rollback", e);
         }
-        historyService.removeMigrationRecord(connection, firstMigration);
-        rollbackThisRun.add(new MigrationRecord(firstMigration, "ROLLED BACK", new java.sql.Timestamp(System.currentTimeMillis())));
     }
 
     /**
@@ -92,9 +94,11 @@ public class RollbackExecutor {
                 connection.rollback();
             } catch (SQLException rollbackEx) {
                 log.error("Failed to rollback transaction", rollbackEx);
+                throw new RuntimeException("Critical error during transaction rollback", rollbackEx);
             }
         }
         log.error("Rollback process failed", e);
+        throw new RuntimeException("Critical error during rollback process", e);
     }
 
     /**
@@ -109,6 +113,7 @@ public class RollbackExecutor {
                 connection.close();
             } catch (SQLException e) {
                 log.error("Failed to close connection", e);
+                throw new RuntimeException("Critical error closing database connection", e);
             }
         }
     }

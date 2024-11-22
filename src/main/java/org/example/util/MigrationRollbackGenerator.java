@@ -19,25 +19,29 @@ public class MigrationRollbackGenerator {
      * Generates rollback SQL files for the given migration files.
      *
      * @param migrationFolderPath the path to the folder containing migration files
-     * @throws IOException if an I/O error occurs
      */
-    public static void generateRollbackFiles(String migrationFolderPath) throws IOException {
-        List<String> migrationFiles = Files.list(Paths.get(migrationFolderPath))
-                .filter(path -> path.toString().endsWith(".sql"))
-                .filter(path -> !path.toString().contains("_rollback"))
-                .map(path -> path.toString())
-                .collect(Collectors.toList());
+    public static void generateRollbackFiles(String migrationFolderPath){
+        try {
+            List<String> migrationFiles = Files.list(Paths.get(migrationFolderPath))
+                    .filter(path -> path.toString().endsWith(".sql"))
+                    .filter(path -> !path.toString().contains("_rollback"))
+                    .map(path -> path.toString())
+                    .collect(Collectors.toList());
 
-        for (String migrationFile : migrationFiles) {
-            String rollbackFile = migrationFile.replace(".sql", "_rollback.sql");
-            Path rollbackPath = Path.of(rollbackFile);
-            if (!Files.exists(rollbackPath)) {
-                String rollbackSql = generateRollbackSql(new String(Files.readAllBytes(Paths.get(migrationFile))));
-                Files.write(rollbackPath, rollbackSql.getBytes());
-                log.info("Generated rollback file: {}", rollbackFile);
-            } else {
-                log.info("Rollback file already exists: {}", rollbackFile);
+            for (String migrationFile : migrationFiles) {
+                String rollbackFile = migrationFile.replace(".sql", "_rollback.sql");
+                Path rollbackPath = Path.of(rollbackFile);
+                if (!Files.exists(rollbackPath)) {
+                    String rollbackSql = generateRollbackSql(new String(Files.readAllBytes(Paths.get(migrationFile))));
+                    Files.write(rollbackPath, rollbackSql.getBytes());
+                    log.info("Generated rollback file: {}", rollbackFile);
+                } else {
+                    log.info("Rollback file already exists: {}", rollbackFile);
+                }
             }
+        } catch (IOException e) {
+            log.error("Error generating rollback files", e);
+            throw new RuntimeException("Critical error while generating rollback files", e);
         }
     }
 

@@ -17,11 +17,13 @@ public class PropertiesUtils {
         try (InputStream input = PropertiesUtils.class.getClassLoader().getResourceAsStream("application.properties")) {
             if (input == null) {
                 log.error("Sorry, unable to find application.properties");
+                throw new RuntimeException("application.properties file not found");
             } else {
                 properties.load(input);
             }
         } catch (IOException ex) {
             log.error("Error loading properties file", ex);
+            throw new RuntimeException("Critical error while loading properties file", ex);
         }
     }
 

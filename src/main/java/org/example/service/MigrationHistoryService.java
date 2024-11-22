@@ -21,9 +21,8 @@ public class MigrationHistoryService {
      *
      * @param connection the database connection
      * @param migrationFile the name of the migration file
-     * @throws SQLException if a database access error occurs
      */
-    public void recordMigration(Connection connection, String migrationFile) throws SQLException {
+    public void recordMigration(Connection connection, String migrationFile) {
         String insertMigrationRecord = "INSERT INTO migration_history (version, script_name) VALUES (?, ?)";
         try (PreparedStatement pstmt = connection.prepareStatement(insertMigrationRecord)) {
             pstmt.setString(1, getVersionFromFileName(migrationFile));
@@ -32,7 +31,7 @@ public class MigrationHistoryService {
             log.info("Recorded migration: {}", migrationFile);
         } catch (SQLException e) {
             log.error("Failed to record migration: " + migrationFile, e);
-            throw e;
+            throw new RuntimeException("Critical error while recording migration: " + migrationFile, e);
         }
     }
 
@@ -41,9 +40,8 @@ public class MigrationHistoryService {
      *
      * @param connection the database connection
      * @return a list of applied migration file names
-     * @throws SQLException if a database access error occurs
      */
-    public List<String> getAppliedMigrations(Connection connection) throws SQLException {
+    public List<String> getAppliedMigrations(Connection connection) {
         List<String> appliedMigrations = new ArrayList<>();
         String selectAppliedMigrations = "SELECT script_name FROM migration_history ORDER BY version DESC";
         try (Statement stmt = connection.createStatement();
@@ -54,7 +52,7 @@ public class MigrationHistoryService {
             log.info("Retrieved applied migrations: {}", appliedMigrations);
         } catch (SQLException e) {
             log.error("Failed to retrieve applied migrations", e);
-            throw e;
+            throw new RuntimeException("Critical error while retrieving applied migrations", e);
         }
         return appliedMigrations;
     }
@@ -64,9 +62,8 @@ public class MigrationHistoryService {
      *
      * @param connection the database connection
      * @param migrationFile the name of the migration file to remove
-     * @throws SQLException if a database access error occurs
      */
-    public void removeMigrationRecord(Connection connection, String migrationFile) throws SQLException {
+    public void removeMigrationRecord(Connection connection, String migrationFile) {
         String deleteMigrationRecord = "DELETE FROM migration_history WHERE script_name = ?";
         try (PreparedStatement pstmt = connection.prepareStatement(deleteMigrationRecord)) {
             pstmt.setString(1, migrationFile);
@@ -74,7 +71,7 @@ public class MigrationHistoryService {
             log.info("Removed migration record: {}", migrationFile);
         } catch (SQLException e) {
             log.error("Failed to remove migration record: " + migrationFile, e);
-            throw e;
+            throw new RuntimeException("Critical error while removing migration record: " + migrationFile, e);
         }
     }
 

@@ -20,14 +20,18 @@ public class ConnectionManager {
      * Retrieves a connection to the database.
      *
      * @return the database connection
-     * @throws SQLException if a database access error occurs
      */
-    public static Connection getConnection() throws SQLException {
-        if (connection == null || connection.isClosed()) {
-            log.info("Creating new database connection.");
-            connection = DriverManager.getConnection(url, username, password);
-        } else {
-            log.info("Using existing database connection.");
+    public static Connection getConnection() {
+        try {
+            if (connection == null || connection.isClosed()) {
+                log.info("Creating new database connection.");
+                connection = DriverManager.getConnection(url, username, password);
+            } else {
+                log.info("Using existing database connection.");
+            }
+        } catch (SQLException e) {
+            log.error("Failed to create database connection", e);
+            throw new RuntimeException("Critical error while creating database connection", e);
         }
         return connection;
     }

@@ -5,7 +5,6 @@ import org.example.model.MigrationRecord;
 import org.example.service.MigrationHistoryService;
 import org.example.service.MigrationLockService;
 import org.example.service.MigrationReportService;
-import org.example.service.executor.EssentialTableCreator;
 import org.example.util.ConnectionManager;
 import org.example.util.MigrationFileReader;
 import org.example.util.MigrationPaths;
@@ -78,7 +77,7 @@ public class MigrationExecutor {
             reportService.generateJSONReport(appliedThisRun, ReportPaths.MIGRATE_REPORT_DIRECTORY + "migration_report.json");
 
             lockService.unlock(connection);
-        } catch (IOException | SQLException e) {
+        } catch (SQLException e) {
             handleMigrationException(connection, e);
         } finally {
             closeConnection(connection);
@@ -91,22 +90,25 @@ public class MigrationExecutor {
      * @param file            the migration file
      * @param connection      the database connection
      * @param appliedThisRun  the list of applied migration records in this run
-     * @throws IOException    if an I/O error occurs
-     * @throws SQLException   if a database access error occurs
      */
-    private void applyMigration(String file, Connection connection, List<MigrationRecord> appliedThisRun) throws IOException, SQLException {
-        String sql = MigrationFileReader.readMigrationFile(file);
-        try (Statement stmt = connection.createStatement()) {
-            stmt.execute(sql);
-            historyService.recordMigration(connection, file);
-            appliedThisRun.add(new MigrationRecord(file, "SUCCESS", new java.sql.Timestamp(System.currentTimeMillis())));
-            log.info("Successfully applied migration: {}", file);
+    private void applyMigration(String file, Connection connection, List<MigrationRecord> appliedThisRun) {
+        try {
+            String sql = MigrationFileReader.readMigrationFile(file);
+            try (Statement stmt = connection.createStatement()) {
+                stmt.execute(sql);
+                historyService.recordMigration(connection, file);
+                appliedThisRun.add(new MigrationRecord(file, "SUCCESS", new java.sql.Timestamp(System.currentTimeMillis())));
+                log.info("Successfully applied migration: {}", file);
+            } catch (SQLException e) {
+                appliedThisRun.add(new MigrationRecord(file, "FAILED", new java.sql.Timestamp(System.currentTimeMillis())));
+                connection.rollback(); // Rollback transaction in case of failure
+                lockService.unlock(connection); // Release lock
+                log.error("Failed to apply migration: {}. Rolled back all changes.", file, e);
+                throw new RuntimeException("Critical error during migration application", e);
+            }
         } catch (SQLException e) {
-            appliedThisRun.add(new MigrationRecord(file, "FAILED", new java.sql.Timestamp(System.currentTimeMillis())));
-            connection.rollback(); // Rollback transaction in case of failure
-            lockService.unlock(connection); // Release lock
-            log.error("Failed to apply migration: {}. Rolled back all changes.", file, e);
-            throw e;
+            log.error("Failed to apply migration: {}", file, e);
+            throw new RuntimeException("Critical error during migration application", e);
         }
     }
 
@@ -123,9 +125,11 @@ public class MigrationExecutor {
                 lockService.unlock(connection);
             } catch (SQLException rollbackEx) {
                 log.error("Failed to rollback transaction", rollbackEx);
+                throw new RuntimeException("Critical error during transaction rollback", rollbackEx);
             }
         }
         log.error("Migration process failed", e);
+        throw new RuntimeException("Critical error during migration process", e);
     }
 
     /**
@@ -140,6 +144,7 @@ public class MigrationExecutor {
                 connection.close();
             } catch (SQLException e) {
                 log.error("Failed to close connection", e);
+                throw new RuntimeException("Critical error closing database connection", e);
             }
         }
     }

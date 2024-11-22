@@ -13,7 +13,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class MigrationLockService {
 
-    public boolean isLocked(Connection connection) throws SQLException {
+    /**
+     * Checks if the migration process is currently locked.
+     *
+     * @param connection the database connection
+     * @return true if the migration process is locked, false otherwise
+     */
+    public boolean isLocked(Connection connection) {
         String sql = "SELECT locked FROM migration_lock WHERE id = 1";
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
@@ -24,12 +30,17 @@ public class MigrationLockService {
             }
         } catch (SQLException e) {
             log.error("Error checking migration lock status", e);
-            throw e;
+            throw new RuntimeException("Critical error while checking migration lock status", e);
         }
         return false;
     }
 
-    public void lock(Connection connection) throws SQLException {
+    /**
+     * Locks the migration process to prevent concurrent migrations.
+     *
+     * @param connection the database connection
+     */
+    public void lock(Connection connection) {
         String sql = "INSERT INTO migration_lock (id, locked) VALUES (1, TRUE) " +
                 "ON CONFLICT (id) DO UPDATE SET locked = EXCLUDED.locked, locked_at = CURRENT_TIMESTAMP";
         try (Statement stmt = connection.createStatement()) {
@@ -37,18 +48,23 @@ public class MigrationLockService {
             log.info("Migration process locked");
         } catch (SQLException e) {
             log.error("Error locking migration process", e);
-            throw e;
+            throw new RuntimeException("Critical error while locking migration process", e);
         }
     }
 
-    public void unlock(Connection connection) throws SQLException {
+    /**
+     * Unlocks the migration process to allow future migrations.
+     *
+     * @param connection the database connection
+     */
+    public void unlock(Connection connection) {
         String sql = "UPDATE migration_lock SET locked = FALSE, locked_at = CURRENT_TIMESTAMP WHERE id = 1";
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(sql);
             log.info("Migration process unlocked");
         } catch (SQLException e) {
             log.error("Error unlocking migration process", e);
-            throw e;
+            throw new RuntimeException("Critical error while unlocking migration process", e);
         }
     }
 }
