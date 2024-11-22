@@ -6,7 +6,7 @@ import org.example.service.MigrationHistoryService;
 import org.example.service.MigrationReportService;
 import org.example.util.ConnectionManager;
 import org.example.util.MigrationFileReader;
-import org.example.util.ReportPaths;
+import org.example.util.paths.ReportPaths;
 
 import java.sql.Connection;
 import java.sql.SQLException;

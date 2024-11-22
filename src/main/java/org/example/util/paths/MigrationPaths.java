@@ -1,4 +1,4 @@
-package org.example.util;
+package org.example.util.paths;
 
 /**
  * Utility class for storing migration file paths as constants.

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.example.util.paths.MigrationPaths;
 
 /**
  * Utility class for reading migration files from the specified directory.

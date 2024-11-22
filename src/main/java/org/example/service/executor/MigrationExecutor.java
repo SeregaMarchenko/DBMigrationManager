@@ -7,11 +7,10 @@ import org.example.service.MigrationLockService;
 import org.example.service.MigrationReportService;
 import org.example.util.ConnectionManager;
 import org.example.util.MigrationFileReader;
-import org.example.util.MigrationPaths;
+import org.example.util.paths.MigrationPaths;
 import org.example.util.MigrationRollbackGenerator;
-import org.example.util.ReportPaths;
+import org.example.util.paths.ReportPaths;
 
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
