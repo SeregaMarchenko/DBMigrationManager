@@ -61,11 +61,36 @@ public class RollbackExecutor {
     }
 
     /**
+     * Rolls back migrations to the specified target version and generates reports for the rollbacks.
+     *
+     * @param targetVersion the target version to rollback to
+     */
+    public void rollback(String targetVersion) {
+        Connection connection = null;
+        List<MigrationRecord> rollbackThisRun = new ArrayList<>();
+        try {
+            connection = ConnectionManager.getConnection();
+            connection.setAutoCommit(false);
+            List<String> migrationsToRollback = historyService.getMigrationsToRollback(connection, targetVersion);
+            for (String migrationFile : migrationsToRollback) {
+                rollbackMigration(migrationFile, connection, rollbackThisRun);
+            }
+            connection.commit();
+            reportService.generateJSONReport(rollbackThisRun, ReportPaths.ROLLBACK_REPORT_DIRECTORY + "rollback_report.json");
+            log.info("Successfully rolled back to version: {}", targetVersion);
+        } catch (SQLException e) {
+            handleRollbackException(connection, e);
+        } finally {
+            closeConnection(connection);
+        }
+    }
+
+    /**
      * Rolls back a single migration file.
      *
-     * @param firstMigration    the first migration file to rollback
-     * @param connection        the database connection
-     * @param rollbackThisRun   the list of rollback migration records in this run
+     * @param firstMigration  the first migration file to rollback
+     * @param connection      the database connection
+     * @param rollbackThisRun the list of rollback migration records in this run
      */
     private void rollbackMigration(String firstMigration, Connection connection, List<MigrationRecord> rollbackThisRun) {
         try {

@@ -32,7 +32,7 @@ public class MigrationStatusPrinter {
         try {
             connection = ConnectionManager.getConnection();
             List<String> appliedMigrations = historyService.getAppliedMigrations(connection);
-            String currentVersion = appliedMigrations.isEmpty() ? "No migrations applied" : appliedMigrations.get(0);
+            String currentVersion = appliedMigrations.isEmpty() ? "No migrations applied" : String.valueOf(historyService.getCurrentVersion());
 
             log.info("Current Database Version: {}", currentVersion);
             log.info("Applied Migrations:");

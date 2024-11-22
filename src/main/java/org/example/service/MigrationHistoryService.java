@@ -1,6 +1,7 @@
 package org.example.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.example.util.ConnectionManager;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -17,9 +18,52 @@ import java.util.List;
 public class MigrationHistoryService {
 
     /**
+     * Retrieves a list of migrations to rollback to a specific version.
+     *
+     * @param connection    the database connection
+     * @param targetVersion the target version to rollback to
+     * @return a list of migration file names to be rolled back
+     */
+    public List<String> getMigrationsToRollback(Connection connection, String targetVersion) {
+        List<String> migrationsToRollback = new ArrayList<>();
+        String selectMigrations = "SELECT script_name FROM migration_history WHERE version > ? ORDER BY version DESC";
+        try (PreparedStatement pstmt = connection.prepareStatement(selectMigrations)) {
+            pstmt.setString(1, targetVersion);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    migrationsToRollback.add(rs.getString("script_name"));
+                }
+            }
+            log.info("Migrations to rollback: {}", migrationsToRollback);
+        } catch (SQLException e) {
+            log.error("Failed to retrieve migrations to rollback", e);
+            throw new RuntimeException("Critical error while retrieving migrations to rollback", e);
+        }
+        return migrationsToRollback;
+    }
+
+    /**
+     * Retrieves the current migration version from the migration history.
+     *
+     * @return the current migration version, or 0 if no migrations exist
+     */
+    public int getCurrentVersion() {
+        String query = "SELECT MAX(version) FROM migration_history";
+        try (Connection connection = ConnectionManager.getConnection(); PreparedStatement pstmt = connection.prepareStatement(query); ResultSet rs = pstmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            log.error("Failed to retrieve current migration version", e);
+            throw new RuntimeException("Critical error while retrieving current migration version", e);
+        }
+        return 0;
+    }
+
+    /**
      * Records a new migration in the migration history.
      *
-     * @param connection the database connection
+     * @param connection    the database connection
      * @param migrationFile the name of the migration file
      */
     public void recordMigration(Connection connection, String migrationFile) {
@@ -60,7 +104,7 @@ public class MigrationHistoryService {
     /**
      * Removes a migration record from the migration history.
      *
-     * @param connection the database connection
+     * @param connection    the database connection
      * @param migrationFile the name of the migration file to remove
      */
     public void removeMigrationRecord(Connection connection, String migrationFile) {

@@ -3,12 +3,14 @@ package org.example.migration;
 import org.example.service.MigrationHistoryService;
 import org.example.service.MigrationLockService;
 import org.example.service.MigrationService;
+import lombok.extern.slf4j.Slf4j;
 
 /**
- * Manager class for handling migration operations.
+ * This class manages the migration operations including applying migrations,
+ * rolling back migrations to a specific version, and printing the migration status.
  */
+@Slf4j
 public class MigrationManager {
-
     private final MigrationService migrationService;
 
     /**
@@ -21,7 +23,7 @@ public class MigrationManager {
     }
 
     /**
-     * Executes pending migrations.
+     * Applies all pending migrations.
      */
     public void migrate() {
         migrationService.migrate();
@@ -35,9 +37,27 @@ public class MigrationManager {
     }
 
     /**
-     * Prints the current migration status.
+     * Rolls back migrations to the specified target version.
+     *
+     * @param targetVersion the target version to rollback to
+     */
+    public void rollback(String targetVersion) {
+        migrationService.rollback(targetVersion);
+    }
+
+    /**
+     * Prints the current migration status of the database.
      */
     public void printStatus() {
         migrationService.printMigrationStatus();
+    }
+
+    /**
+     * Gets the current version of the migrations applied to the database.
+     *
+     * @return the current migration version
+     */
+    public int getCurrentVersion() {
+        return migrationService.getCurrentVersion();
     }
 }
