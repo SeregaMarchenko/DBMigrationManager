@@ -45,9 +45,8 @@ public class MigrationService {
         List<MigrationRecord> appliedThisRun = new ArrayList<>();
         try {
             connection = ConnectionManager.getConnection();
-            connection.setAutoCommit(false); // Start transaction
+            connection.setAutoCommit(false);
 
-            // Create essential tables if they do not exist
             createEssentialTablesIfNotExists(connection);
 
             if (lockService.isLocked(connection)) {
@@ -55,7 +54,7 @@ public class MigrationService {
                 return;
             }
 
-            lockService.lock(connection); // Acquire lock
+            lockService.lock(connection);
 
             List<String> migrationFiles = MigrationFileReader.getMigrationFiles();
             List<String> appliedMigrations = historyService.getAppliedMigrations(connection);
@@ -81,20 +80,18 @@ public class MigrationService {
                 }
             }
 
-            // Generate rollbacks after all migrations are applied
             MigrationRollbackGenerator.generateRollbackFiles(MigrationPaths.ROLLBACK_DIRECTORY);
 
-            connection.commit(); // Commit transaction if all is successful
+            connection.commit();
 
-            // Generate reports for migrations applied in this run
             reportService.generateJSONReport(appliedThisRun, ReportPaths.MIGRATE_REPORT_DIRECTORY + "migration_report.json");
 
-            lockService.unlock(connection); // Release lock
+            lockService.unlock(connection);
         } catch (IOException | SQLException e) {
             if (connection != null) {
                 try {
-                    connection.rollback(); // Rollback transaction in case of error
-                    lockService.unlock(connection); // Release lock
+                    connection.rollback();
+                    lockService.unlock(connection);
                 } catch (SQLException rollbackEx) {
                     log.error("Failed to rollback transaction", rollbackEx);
                 }
@@ -103,8 +100,8 @@ public class MigrationService {
         } finally {
             if (connection != null) {
                 try {
-                    connection.setAutoCommit(true); // Restore AutoCommit value
-                    connection.close(); // Close connection
+                    connection.setAutoCommit(true);
+                    connection.close();
                 } catch (SQLException e) {
                     log.error("Failed to close connection", e);
                 }
@@ -120,11 +117,11 @@ public class MigrationService {
         List<MigrationRecord> rollbackThisRun = new ArrayList<>();
         try {
             connection = ConnectionManager.getConnection();
-            connection.setAutoCommit(false); // Start transaction
+            connection.setAutoCommit(false);
 
             List<String> appliedMigrations = historyService.getAppliedMigrations(connection);
             if (!appliedMigrations.isEmpty()) {
-                String firstMigration = appliedMigrations.remove(0); // Get last applied migration
+                String firstMigration = appliedMigrations.remove(0);
                 String rollbackFile = firstMigration.replace(".sql", "_rollback.sql");
                 String rollbackSql = MigrationFileReader.readMigrationFile(rollbackFile);
                 try (Statement stmt = connection.createStatement()) {
@@ -132,9 +129,8 @@ public class MigrationService {
                 }
                 historyService.removeMigrationRecord(connection, firstMigration);
                 rollbackThisRun.add(new MigrationRecord(firstMigration, "ROLLED BACK", new java.sql.Timestamp(System.currentTimeMillis())));
-                connection.commit(); // Commit transaction
+                connection.commit();
 
-                // Generate reports for rollbacks performed in this run
                 reportService.generateJSONReport(rollbackThisRun, ReportPaths.ROLLBACK_REPORT_DIRECTORY + "rollback_report.json");
 
                 log.info("Successfully rolled back migration: {}", firstMigration);
@@ -144,7 +140,7 @@ public class MigrationService {
         } catch (IOException | SQLException e) {
             if (connection != null) {
                 try {
-                    connection.rollback(); // Rollback transaction in case of error
+                    connection.rollback();
                 } catch (SQLException rollbackEx) {
                     log.error("Failed to rollback transaction", rollbackEx);
                 }
@@ -153,8 +149,8 @@ public class MigrationService {
         } finally {
             if (connection != null) {
                 try {
-                    connection.setAutoCommit(true); // Restore AutoCommit value
-                    connection.close(); // Close connection
+                    connection.setAutoCommit(true);
+                    connection.close();
                 } catch (SQLException e) {
                     log.error("Failed to close connection", e);
                 }
@@ -197,15 +193,22 @@ public class MigrationService {
      * @throws SQLException if a database access error occurs
      */
     private void createEssentialTablesIfNotExists(Connection connection) throws SQLException {
-        String createMigrationHistoryTable = "CREATE TABLE IF NOT EXISTS migration_history (" +
-                "id SERIAL PRIMARY KEY, " +
-                "version VARCHAR(50) NOT NULL, " +
-                "script_name VARCHAR(255) NOT NULL, " +
-                "applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)";
-        String createMigrationLockTable = "CREATE TABLE IF NOT EXISTS migration_lock (" +
-                "id SERIAL PRIMARY KEY, " +
-                "locked BOOLEAN NOT NULL, " +
-                "locked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)";
+        String createMigrationHistoryTable = """
+                CREATE TABLE IF NOT EXISTS migration_history (
+                    id SERIAL PRIMARY KEY,
+                    version VARCHAR(50) NOT NULL,
+                    script_name VARCHAR(255) NOT NULL,
+                    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """;
+
+        String createMigrationLockTable = """
+                CREATE TABLE IF NOT EXISTS migration_lock (
+                    id SERIAL PRIMARY KEY,
+                    locked BOOLEAN NOT NULL,
+                    locked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """;
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(createMigrationHistoryTable);
             stmt.execute(createMigrationLockTable);
