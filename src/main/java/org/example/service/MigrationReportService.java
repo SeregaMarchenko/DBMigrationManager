@@ -1,11 +1,14 @@
 package org.example.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.type.CollectionType;
 import lombok.extern.slf4j.Slf4j;
 import org.example.model.MigrationRecord;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -13,7 +16,7 @@ import java.util.List;
  */
 @Slf4j
 public class MigrationReportService {
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
 
     /**
      * Generates a JSON report for the given list of migration records.
@@ -23,8 +26,20 @@ public class MigrationReportService {
      */
     public void generateJSONReport(List<MigrationRecord> migrationRecords, String filePath) {
         try {
-            objectMapper.writeValue(new File(filePath), migrationRecords);
-            log.info("Migration report generated at {}", filePath);
+            // Read existing records
+            List<MigrationRecord> existingRecords = new ArrayList<>();
+            File file = new File(filePath);
+            if (file.exists()) {
+                CollectionType listType = objectMapper.getTypeFactory().constructCollectionType(ArrayList.class, MigrationRecord.class);
+                existingRecords = objectMapper.readValue(file, listType);
+            }
+
+            // Append new records
+            existingRecords.addAll(migrationRecords);
+
+            // Write updated records
+            objectMapper.writeValue(file, existingRecords);
+            log.info("Migration report updated at {}", filePath);
         } catch (IOException e) {
             log.error("Failed to generate migration report", e);
             throw new RuntimeException("Critical error while generating migration report", e);
