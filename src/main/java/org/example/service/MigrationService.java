@@ -1,30 +1,14 @@
 package org.example.service;
 
-import lombok.extern.slf4j.Slf4j;
-import org.example.util.ConnectionManager;
-import org.example.util.MigrationFileReader;
-import org.example.util.MigrationPaths;
-import org.example.util.MigrationRollbackGenerator;
-import org.example.model.MigrationRecord;
-import org.example.util.ReportPaths;
+import org.example.service.executor.MigrationExecutor;
+import org.example.service.executor.MigrationStatusPrinter;
+import org.example.service.executor.RollbackExecutor;
 
-import java.io.IOException;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.List;
-
-/**
- * MigrationService handles the application and rollback of database migrations,
- * as well as generating reports for migrations and rollbacks.
- */
-@Slf4j
 public class MigrationService {
 
-    private final MigrationHistoryService historyService;
-    private final MigrationLockService lockService;
-    private final MigrationReportService reportService = new MigrationReportService();
+    private final MigrationExecutor migrationExecutor;
+    private final RollbackExecutor rollbackExecutor;
+    private final MigrationStatusPrinter statusPrinter;
 
     /**
      * Constructs a new MigrationService with the specified history and lock services.
@@ -33,185 +17,29 @@ public class MigrationService {
      * @param lockService    the migration lock service
      */
     public MigrationService(MigrationHistoryService historyService, MigrationLockService lockService) {
-        this.historyService = historyService;
-        this.lockService = lockService;
+        this.migrationExecutor = new MigrationExecutor(historyService, lockService);
+        this.rollbackExecutor = new RollbackExecutor(historyService);
+        this.statusPrinter = new MigrationStatusPrinter(historyService);
     }
 
     /**
      * Applies all pending migrations and generates reports for the applied migrations.
      */
     public void migrate() {
-        Connection connection = null;
-        List<MigrationRecord> appliedThisRun = new ArrayList<>();
-        try {
-            connection = ConnectionManager.getConnection();
-            connection.setAutoCommit(false);
-
-            createEssentialTablesIfNotExists(connection);
-
-            if (lockService.isLocked(connection)) {
-                log.warn("Migration is already in progress by another process.");
-                return;
-            }
-
-            lockService.lock(connection);
-
-            List<String> migrationFiles = MigrationFileReader.getMigrationFiles();
-            List<String> appliedMigrations = historyService.getAppliedMigrations(connection);
-
-            for (String file : migrationFiles) {
-                if (appliedMigrations.contains(file)) {
-                    log.info("Migration already applied: {}", file);
-                    continue;
-                }
-
-                String sql = MigrationFileReader.readMigrationFile(file);
-                try (Statement stmt = connection.createStatement()) {
-                    stmt.execute(sql);
-                    historyService.recordMigration(connection, file);
-                    appliedThisRun.add(new MigrationRecord(file, "SUCCESS", new java.sql.Timestamp(System.currentTimeMillis())));
-                    log.info("Successfully applied migration: {}", file);
-                } catch (SQLException e) {
-                    appliedThisRun.add(new MigrationRecord(file, "FAILED", new java.sql.Timestamp(System.currentTimeMillis())));
-                    connection.rollback(); // Rollback transaction in case of failure
-                    lockService.unlock(connection); // Release lock
-                    log.error("Failed to apply migration: {}. Rolled back all changes.", file, e);
-                    return;
-                }
-            }
-
-            MigrationRollbackGenerator.generateRollbackFiles(MigrationPaths.ROLLBACK_DIRECTORY);
-
-            connection.commit();
-
-            reportService.generateJSONReport(appliedThisRun, ReportPaths.MIGRATE_REPORT_DIRECTORY + "migration_report.json");
-
-            lockService.unlock(connection);
-        } catch (IOException | SQLException e) {
-            if (connection != null) {
-                try {
-                    connection.rollback();
-                    lockService.unlock(connection);
-                } catch (SQLException rollbackEx) {
-                    log.error("Failed to rollback transaction", rollbackEx);
-                }
-            }
-            log.error("Migration process failed", e);
-        } finally {
-            if (connection != null) {
-                try {
-                    connection.setAutoCommit(true);
-                    connection.close();
-                } catch (SQLException e) {
-                    log.error("Failed to close connection", e);
-                }
-            }
-        }
+        migrationExecutor.migrate();
     }
 
     /**
      * Rolls back the last applied migration and generates reports for the rollbacks.
      */
     public void rollback() {
-        Connection connection = null;
-        List<MigrationRecord> rollbackThisRun = new ArrayList<>();
-        try {
-            connection = ConnectionManager.getConnection();
-            connection.setAutoCommit(false);
-
-            List<String> appliedMigrations = historyService.getAppliedMigrations(connection);
-            if (!appliedMigrations.isEmpty()) {
-                String firstMigration = appliedMigrations.remove(0);
-                String rollbackFile = firstMigration.replace(".sql", "_rollback.sql");
-                String rollbackSql = MigrationFileReader.readMigrationFile(rollbackFile);
-                try (Statement stmt = connection.createStatement()) {
-                    stmt.execute(rollbackSql);
-                }
-                historyService.removeMigrationRecord(connection, firstMigration);
-                rollbackThisRun.add(new MigrationRecord(firstMigration, "ROLLED BACK", new java.sql.Timestamp(System.currentTimeMillis())));
-                connection.commit();
-
-                reportService.generateJSONReport(rollbackThisRun, ReportPaths.ROLLBACK_REPORT_DIRECTORY + "rollback_report.json");
-
-                log.info("Successfully rolled back migration: {}", firstMigration);
-            } else {
-                log.info("No migrations to rollback.");
-            }
-        } catch (IOException | SQLException e) {
-            if (connection != null) {
-                try {
-                    connection.rollback();
-                } catch (SQLException rollbackEx) {
-                    log.error("Failed to rollback transaction", rollbackEx);
-                }
-            }
-            log.error("Rollback process failed", e);
-        } finally {
-            if (connection != null) {
-                try {
-                    connection.setAutoCommit(true);
-                    connection.close();
-                } catch (SQLException e) {
-                    log.error("Failed to close connection", e);
-                }
-            }
-        }
+        rollbackExecutor.rollback();
     }
 
     /**
      * Prints the current migration status of the database.
      */
     public void printMigrationStatus() {
-        Connection connection = null;
-        try {
-            connection = ConnectionManager.getConnection();
-            List<String> appliedMigrations = historyService.getAppliedMigrations(connection);
-            String currentVersion = appliedMigrations.isEmpty() ? "No migrations applied" : appliedMigrations.get(0);
-
-            log.info("Current Database Version: {}", currentVersion);
-            log.info("Applied Migrations:");
-            for (String migration : appliedMigrations) {
-                log.info(" - {}", migration);
-            }
-        } catch (SQLException e) {
-            log.error("Failed to retrieve migration status", e);
-        } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (SQLException e) {
-                    log.error("Failed to close connection", e);
-                }
-            }
-        }
-    }
-
-    /**
-     * Creates essential tables (migration_history and migration_lock) if they do not exist.
-     *
-     * @param connection the database connection
-     * @throws SQLException if a database access error occurs
-     */
-    private void createEssentialTablesIfNotExists(Connection connection) throws SQLException {
-        String createMigrationHistoryTable = """
-                CREATE TABLE IF NOT EXISTS migration_history (
-                    id SERIAL PRIMARY KEY,
-                    version VARCHAR(50) NOT NULL,
-                    script_name VARCHAR(255) NOT NULL,
-                    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-                """;
-
-        String createMigrationLockTable = """
-                CREATE TABLE IF NOT EXISTS migration_lock (
-                    id SERIAL PRIMARY KEY,
-                    locked BOOLEAN NOT NULL,
-                    locked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-                """;
-        try (Statement stmt = connection.createStatement()) {
-            stmt.execute(createMigrationHistoryTable);
-            stmt.execute(createMigrationLockTable);
-        }
+        statusPrinter.printMigrationStatus();
     }
 }
