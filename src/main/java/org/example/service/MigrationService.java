@@ -14,18 +14,17 @@ public class MigrationService {
     private final RollbackExecutor rollbackExecutor;
     private final MigrationStatusPrinter statusPrinter;
     private final MigrationHistoryService historyService;
+    private final MigrationLockService lockService;
 
     /**
      * Constructs a new MigrationService with the specified history and lock services.
-     *
-     * @param historyService the migration history service
-     * @param lockService    the migration lock service
      */
-    public MigrationService(MigrationHistoryService historyService, MigrationLockService lockService) {
+    public MigrationService() {
+        this.historyService = new MigrationHistoryService();
+        this.lockService = new MigrationLockService();
         this.migrationExecutor = new MigrationExecutor(historyService, lockService);
         this.rollbackExecutor = new RollbackExecutor(historyService);
         this.statusPrinter = new MigrationStatusPrinter(historyService);
-        this.historyService = historyService;
     }
 
     /**

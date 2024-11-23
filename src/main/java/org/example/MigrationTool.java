@@ -1,7 +1,8 @@
 package org.example;
 
 import lombok.extern.slf4j.Slf4j;
-import org.example.migration.MigrationManager;
+import org.example.service.MigrationService;
+import org.example.service.executor.EssentialTableCreator;
 
 import java.util.Scanner;
 
@@ -11,22 +12,20 @@ import java.util.Scanner;
 @Slf4j
 public class MigrationTool {
     public static void main(String[] args) {
-        MigrationManager migrationManager = new MigrationManager();
+        new EssentialTableCreator().createEssentialTablesIfNotExists();
+        MigrationService migrationService = new MigrationService();
         Scanner scanner = new Scanner(System.in);
         String command = "";
-
         while (!command.equalsIgnoreCase("exit")) {
             log.info("Please enter a command: 'migrate', 'rollback <version>', 'status', or 'exit' to quit.");
             command = scanner.nextLine().trim();
-
             if (command.toLowerCase().startsWith("rollback ")) {
                 String version = command.substring(9).trim();
                 try {
                     int versionNumber = Integer.parseInt(version);
-                    int currentVersion = migrationManager.getCurrentVersion();
-
+                    int currentVersion = migrationService.getCurrentVersion();
                     if (versionNumber >= 0 && versionNumber <= currentVersion) {
-                        migrationManager.rollback(version);
+                        migrationService.rollback(version);
                     } else {
                         log.info("Invalid version number. Please enter a number between 0 and " + currentVersion + ".");
                     }
@@ -36,13 +35,13 @@ public class MigrationTool {
             } else {
                 switch (command.toLowerCase()) {
                     case "migrate":
-                        migrationManager.migrate();
+                        migrationService.migrate();
                         break;
                     case "rollback":
-                        migrationManager.rollback();
+                        migrationService.rollback();
                         break;
                     case "status":
-                        migrationManager.printStatus();
+                        migrationService.printMigrationStatus();
                         break;
                     case "exit":
                         System.out.println("Exiting...");

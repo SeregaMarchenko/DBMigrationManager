@@ -1,6 +1,7 @@
 package org.example.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.example.comparator.NaturalOrderComparator;
 import org.example.util.ConnectionManager;
 
 import java.sql.Connection;
@@ -28,11 +29,15 @@ public class MigrationHistoryService {
         List<String> migrationsToRollback = new ArrayList<>();
         String selectMigrations = "SELECT script_name FROM migration_history WHERE version > ? ORDER BY version DESC";
         try (PreparedStatement pstmt = connection.prepareStatement(selectMigrations)) {
-            pstmt.setString(1, targetVersion);
+            pstmt.setInt(1, Integer.parseInt(targetVersion)); // Используем целочисленное значение
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
-                    migrationsToRollback.add(rs.getString("script_name"));
+                    String scriptName = rs.getString("script_name");
+                    migrationsToRollback.add(scriptName);
                 }
+
+                // Сортировка всех миграций
+                migrationsToRollback.sort(new NaturalOrderComparator().reversed());
             }
             log.info("Migrations to rollback: {}", migrationsToRollback);
         } catch (SQLException e) {
@@ -49,7 +54,9 @@ public class MigrationHistoryService {
      */
     public int getCurrentVersion() {
         String query = "SELECT MAX(version) FROM migration_history";
-        try (Connection connection = ConnectionManager.getConnection(); PreparedStatement pstmt = connection.prepareStatement(query); ResultSet rs = pstmt.executeQuery()) {
+        try (Connection connection = ConnectionManager.getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(query);
+             ResultSet rs = pstmt.executeQuery()) {
             if (rs.next()) {
                 return rs.getInt(1);
             }
@@ -69,7 +76,7 @@ public class MigrationHistoryService {
     public void recordMigration(Connection connection, String migrationFile) {
         String insertMigrationRecord = "INSERT INTO migration_history (version, script_name) VALUES (?, ?)";
         try (PreparedStatement pstmt = connection.prepareStatement(insertMigrationRecord)) {
-            pstmt.setString(1, getVersionFromFileName(migrationFile));
+            pstmt.setInt(1, Integer.parseInt(getVersionFromFileName(migrationFile))); // Используем целочисленное значение
             pstmt.setString(2, migrationFile);
             pstmt.executeUpdate();
             log.info("Recorded migration: {}", migrationFile);
@@ -91,8 +98,10 @@ public class MigrationHistoryService {
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(selectAppliedMigrations)) {
             while (rs.next()) {
-                appliedMigrations.add(rs.getString("script_name"));
+                String scriptName = rs.getString("script_name");
+                appliedMigrations.add(scriptName);
             }
+            appliedMigrations.sort(new NaturalOrderComparator().reversed());
             log.info("Retrieved applied migrations: {}", appliedMigrations);
         } catch (SQLException e) {
             log.error("Failed to retrieve applied migrations", e);

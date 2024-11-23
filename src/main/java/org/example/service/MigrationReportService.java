@@ -20,6 +20,8 @@ public class MigrationReportService {
 
     /**
      * Generates a JSON report for the given list of migration records.
+     * This method reads existing records from the file, appends new migration records,
+     * and writes the updated list back to the file in JSON format.
      *
      * @param migrationRecords the list of migration records
      * @param filePath the file path to save the JSON report

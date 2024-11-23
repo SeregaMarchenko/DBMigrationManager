@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class ConnectionManager {
+
     private static String url = PropertiesUtils.getProperty("db.url");
     private static String username = PropertiesUtils.getProperty("db.username");
     private static String password = PropertiesUtils.getProperty("db.password");
@@ -18,6 +19,7 @@ public class ConnectionManager {
 
     /**
      * Retrieves a connection to the database.
+     * If an existing connection is already open, it reuses it. Otherwise, it creates a new connection.
      *
      * @return the database connection
      */

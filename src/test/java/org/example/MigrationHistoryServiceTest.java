@@ -48,7 +48,7 @@ public class MigrationHistoryServiceTest {
 
         historyService.recordMigration(connection, migrationFile);
 
-        verify(preparedStatement).setString(1, "1");
+        verify(preparedStatement).setInt(1, 1);
         verify(preparedStatement).setString(2, migrationFile);
         verify(preparedStatement).executeUpdate();
     }

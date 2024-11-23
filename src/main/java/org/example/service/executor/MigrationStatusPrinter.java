@@ -26,6 +26,8 @@ public class MigrationStatusPrinter {
 
     /**
      * Prints the current migration status of the database.
+     * This method retrieves and prints the current version of the database
+     * and a list of applied migrations.
      */
     public void printMigrationStatus() {
         Connection connection = null;

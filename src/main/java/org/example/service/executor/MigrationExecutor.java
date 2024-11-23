@@ -7,10 +7,10 @@ import org.example.service.MigrationLockService;
 import org.example.service.MigrationReportService;
 import org.example.util.ConnectionManager;
 import org.example.util.MigrationFileReader;
-import org.example.util.paths.MigrationPaths;
 import org.example.util.MigrationRollbackGenerator;
 import org.example.util.paths.ReportPaths;
 
+import java.sql.Timestamp;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -25,7 +25,6 @@ public class MigrationExecutor {
     private final MigrationHistoryService historyService;
     private final MigrationLockService lockService;
     private final MigrationReportService reportService = new MigrationReportService();
-    private final EssentialTableCreator tableCreator = new EssentialTableCreator();
 
     /**
      * Constructs a new MigrationExecutor with the specified history and lock services.
@@ -40,6 +39,7 @@ public class MigrationExecutor {
 
     /**
      * Applies all pending migrations and generates reports for the applied migrations.
+     * This method ensures that migrations are not concurrently applied by using a locking mechanism.
      */
     public void migrate() {
         Connection connection = null;
@@ -47,8 +47,6 @@ public class MigrationExecutor {
         try {
             connection = ConnectionManager.getConnection();
             connection.setAutoCommit(false);
-
-            tableCreator.createEssentialTablesIfNotExists(connection);
 
             if (lockService.isLocked(connection)) {
                 log.warn("Migration is already in progress by another process.");
@@ -69,7 +67,7 @@ public class MigrationExecutor {
                 applyMigration(file, connection, appliedThisRun);
             }
 
-            MigrationRollbackGenerator.generateRollbackFiles(MigrationPaths.ROLLBACK_DIRECTORY);
+            MigrationRollbackGenerator.generateRollbackFiles();
 
             connection.commit();
 
@@ -85,6 +83,7 @@ public class MigrationExecutor {
 
     /**
      * Applies a single migration file.
+     * This method executes the SQL statements in the migration file and records the migration.
      *
      * @param file            the migration file
      * @param connection      the database connection
@@ -96,10 +95,10 @@ public class MigrationExecutor {
             try (Statement stmt = connection.createStatement()) {
                 stmt.execute(sql);
                 historyService.recordMigration(connection, file);
-                appliedThisRun.add(new MigrationRecord(file, "SUCCESS", new java.sql.Timestamp(System.currentTimeMillis())));
+                appliedThisRun.add(new MigrationRecord(file, "SUCCESS", new Timestamp(System.currentTimeMillis())));
                 log.info("Successfully applied migration: {}", file);
             } catch (SQLException e) {
-                appliedThisRun.add(new MigrationRecord(file, "FAILED", new java.sql.Timestamp(System.currentTimeMillis())));
+                appliedThisRun.add(new MigrationRecord(file, "FAILED", new Timestamp(System.currentTimeMillis())));
                 connection.rollback(); // Rollback transaction in case of failure
                 lockService.unlock(connection); // Release lock
                 log.error("Failed to apply migration: {}. Rolled back all changes.", file, e);
@@ -113,6 +112,7 @@ public class MigrationExecutor {
 
     /**
      * Handles exceptions during the migration process.
+     * This method rolls back the transaction and releases the lock in case of an error.
      *
      * @param connection the database connection
      * @param e          the exception thrown
@@ -133,6 +133,7 @@ public class MigrationExecutor {
 
     /**
      * Closes the database connection.
+     * This method sets auto-commit mode back to true and closes the connection.
      *
      * @param connection the database connection
      */

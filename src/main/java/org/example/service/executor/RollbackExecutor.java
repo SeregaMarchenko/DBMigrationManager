@@ -3,6 +3,7 @@ package org.example.service.executor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.model.MigrationRecord;
 import org.example.service.MigrationHistoryService;
+import org.example.service.MigrationLockService;
 import org.example.service.MigrationReportService;
 import org.example.util.ConnectionManager;
 import org.example.util.MigrationFileReader;
@@ -20,6 +21,7 @@ import java.util.List;
 @Slf4j
 public class RollbackExecutor {
     private final MigrationHistoryService historyService;
+    private final MigrationLockService lockService = new MigrationLockService();
     private final MigrationReportService reportService = new MigrationReportService();
 
     /**
@@ -41,18 +43,25 @@ public class RollbackExecutor {
             connection = ConnectionManager.getConnection();
             connection.setAutoCommit(false);
 
+            if (lockService.isLocked(connection)) {
+                log.warn("Migration is already in progress by another process.");
+                return;
+            }
+
+            lockService.lock(connection);
+
             List<String> appliedMigrations = historyService.getAppliedMigrations(connection);
             if (!appliedMigrations.isEmpty()) {
                 String firstMigration = appliedMigrations.remove(0);
                 rollbackMigration(firstMigration, connection, rollbackThisRun);
                 connection.commit();
-
                 reportService.generateJSONReport(rollbackThisRun, ReportPaths.ROLLBACK_REPORT_DIRECTORY + "rollback_report.json");
-
                 log.info("Successfully rolled back migration: {}", firstMigration);
             } else {
                 log.info("No migrations to rollback.");
             }
+
+            lockService.unlock(connection);
         } catch (SQLException e) {
             handleRollbackException(connection, e);
         } finally {
@@ -71,6 +80,14 @@ public class RollbackExecutor {
         try {
             connection = ConnectionManager.getConnection();
             connection.setAutoCommit(false);
+
+            if (lockService.isLocked(connection)) {
+                log.warn("Migration is already in progress by another process.");
+                return;
+            }
+
+            lockService.lock(connection);
+
             List<String> migrationsToRollback = historyService.getMigrationsToRollback(connection, targetVersion);
             for (String migrationFile : migrationsToRollback) {
                 rollbackMigration(migrationFile, connection, rollbackThisRun);
@@ -78,6 +95,8 @@ public class RollbackExecutor {
             connection.commit();
             reportService.generateJSONReport(rollbackThisRun, ReportPaths.ROLLBACK_REPORT_DIRECTORY + "rollback_report.json");
             log.info("Successfully rolled back to version: {}", targetVersion);
+
+            lockService.unlock(connection);
         } catch (SQLException e) {
             handleRollbackException(connection, e);
         } finally {
@@ -88,21 +107,21 @@ public class RollbackExecutor {
     /**
      * Rolls back a single migration file.
      *
-     * @param firstMigration  the first migration file to rollback
-     * @param connection      the database connection
+     * @param migrationFile the migration file to rollback
+     * @param connection the database connection
      * @param rollbackThisRun the list of rollback migration records in this run
      */
-    private void rollbackMigration(String firstMigration, Connection connection, List<MigrationRecord> rollbackThisRun) {
+    private void rollbackMigration(String migrationFile, Connection connection, List<MigrationRecord> rollbackThisRun) {
         try {
-            String rollbackFile = firstMigration.replace(".sql", "_rollback.sql");
+            String rollbackFile = migrationFile.replace(".sql", "_rollback.sql");
             String rollbackSql = MigrationFileReader.readMigrationFile(rollbackFile);
             try (Statement stmt = connection.createStatement()) {
                 stmt.execute(rollbackSql);
             }
-            historyService.removeMigrationRecord(connection, firstMigration);
-            rollbackThisRun.add(new MigrationRecord(firstMigration, "ROLLED BACK", new java.sql.Timestamp(System.currentTimeMillis())));
+            historyService.removeMigrationRecord(connection, migrationFile);
+            rollbackThisRun.add(new MigrationRecord(migrationFile, "ROLLED BACK", new java.sql.Timestamp(System.currentTimeMillis())));
         } catch (SQLException e) {
-            log.error("Failed to rollback migration: {}", firstMigration, e);
+            log.error("Failed to rollback migration: {}", migrationFile, e);
             throw new RuntimeException("Critical error during migration rollback", e);
         }
     }
@@ -111,7 +130,7 @@ public class RollbackExecutor {
      * Handles exceptions during the rollback process.
      *
      * @param connection the database connection
-     * @param e          the exception thrown
+     * @param e the exception thrown
      */
     private void handleRollbackException(Connection connection, Exception e) {
         if (connection != null) {

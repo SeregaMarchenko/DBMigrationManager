@@ -25,12 +25,12 @@ public class MigrationLockService {
              ResultSet rs = stmt.executeQuery(sql)) {
             if (rs.next()) {
                 boolean locked = rs.getBoolean("locked");
-                log.info("Migration lock status: {}", locked);
+                log.info("Lock status: {}", locked);
                 return locked;
             }
         } catch (SQLException e) {
-            log.error("Error checking migration lock status", e);
-            throw new RuntimeException("Critical error while checking migration lock status", e);
+            log.error("Error checking lock status", e);
+            throw new RuntimeException("Critical error while checking lock status", e);
         }
         return false;
     }
@@ -45,10 +45,10 @@ public class MigrationLockService {
                 "ON CONFLICT (id) DO UPDATE SET locked = EXCLUDED.locked, locked_at = CURRENT_TIMESTAMP";
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(sql);
-            log.info("Migration process locked");
+            log.info("Process locked");
         } catch (SQLException e) {
-            log.error("Error locking migration process", e);
-            throw new RuntimeException("Critical error while locking migration process", e);
+            log.error("Error locking process", e);
+            throw new RuntimeException("Critical error while locking process", e);
         }
     }
 
@@ -61,10 +61,10 @@ public class MigrationLockService {
         String sql = "UPDATE migration_lock SET locked = FALSE, locked_at = CURRENT_TIMESTAMP WHERE id = 1";
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(sql);
-            log.info("Migration process unlocked");
+            log.info("Process unlocked");
         } catch (SQLException e) {
-            log.error("Error unlocking migration process", e);
-            throw new RuntimeException("Critical error while unlocking migration process", e);
+            log.error("Error unlocking process", e);
+            throw new RuntimeException("Critical error while unlocking process", e);
         }
     }
 }

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.example.comparator.NaturalOrderComparator;
 import org.example.util.paths.MigrationPaths;
 
 /**
@@ -26,7 +27,7 @@ public class MigrationFileReader {
                     .filter(path -> path.toString().endsWith(".sql"))
                     .filter(path -> !path.toString().contains("_rollback"))
                     .map(path -> path.getFileName().toString())
-                    .sorted()
+                    .sorted(new NaturalOrderComparator())
                     .collect(Collectors.toList());
         } catch (IOException e) {
             log.error("Error reading migration files", e);
