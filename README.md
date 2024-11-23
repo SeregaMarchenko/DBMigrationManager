@@ -88,7 +88,7 @@ Exiting...
 
 ## Detailed Information about Key Classes
 
-### `MigrationManager`
+### `MigrationService`
 Manages the migration operations, including applying and rolling back migrations, and printing migration status.
 
 ### `RollbackExecutor`
