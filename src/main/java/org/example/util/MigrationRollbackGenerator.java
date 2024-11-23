@@ -26,7 +26,7 @@ public class MigrationRollbackGenerator {
             for (String migrationFile : migrationFiles) {
                 String rollbackFile = migrationFile.replace(".sql", "_rollback.sql");
                 Path rollbackPath = Path.of(rollbackFile);
-                if (!Files.exists(rollbackPath)) {
+                if (Files.exists(rollbackPath)) {
                     String rollbackSql = generateRollbackSql(new String(Files.readAllBytes(Paths.get(migrationFile))));
                     Files.write(rollbackPath, rollbackSql.getBytes());
                     log.info("Generated rollback file: {}", rollbackFile);

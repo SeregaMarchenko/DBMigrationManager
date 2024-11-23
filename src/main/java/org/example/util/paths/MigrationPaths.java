@@ -6,6 +6,5 @@ package org.example.util.paths;
 public class MigrationPaths {
 
     public static final String MIGRATION_DIRECTORY = "src/main/resources/db/migrations";
-    public static final String ROLLBACK_DIRECTORY = "src/main/resources/db/migrations";
 
 }
